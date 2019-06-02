@@ -1,0 +1,85 @@
+/* systemd */
+
+
+[Unit]
+Description=uWSGI Emperor service
+[Service]
+ExecStartPre=/bin/bash -c 'mkdir -p /run/uwsgi; chown anel:www-data /run/uwsgi'
+
+ExecStart=/usr/local/bin/uwsgi --emperor /home/anel/uwsgi-files
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+StandardError=syslog
+NotifyAccess=all
+[Install]
+WantedBy=multi-user.target
+
+
+/* uwsgi ini files */
+
+########################################
+anel@start-tehnicka:~/uwsgi-files$ cat tscze.ini 
+########################################
+
+[uwsgi]
+home = /home/anel/my_playground/webapps
+chdir = %(home)/upis
+wsgi-file =%(chdir)/upis/wsgi.py
+master=true
+processes=5
+
+socket = /home/anel/upis.sock
+vacuum = true
+chown-socket = anel:www-data
+chmod-socket = 660
+
+
+# Change on different path of tscze.ini
+anel@start-tehnicka:~/uwsgi-files$ cat ../web-workspace/webapps/upis/upis/
+__init__.py   logging.conf  settings.py   urls.py       wsgi.py
+
+# So now we have 
+
+	anel@start-tehnicka:~$ cat uwsgi-files/tscze.ini 
+	[uwsgi]
+	home = /home/anel/web-workspace/webapps/  ##<<<<-this path to project
+	chdir = %(home)/upis		##<<<<-Path to manage.py
+	wsgi-file =%(chdir)/upis/wsgi.py
+	master=true
+	processes=5
+
+	socket = /home/anel/upis.sock
+	vacuum = true
+	chown-socket = anel:www-data
+	chmod-socket = 660
+
+# restart service and will create "upis.sock"
+systemctl restart tscze.service
+
+#tehnicka.ini not used
+anel@start-tehnicka:~$ cat /etc/uwsgi/sites_anel/tehnicka.ini 
+
+
+
+/* NGINX */
+
+anel@start-tehnicka:~$ cat /etc/nginx/sites-available/tscze 
+server {
+    listen 5000;
+    server_name 51.15.114.199;
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location /static/ {
+      root /home/anel/my_playground/webapps/upis; # change this also /home/anel/web-workspace/webapps/upis
+    }
+
+    location / {
+        include uwsgi_params;
+        uwsgi_pass unix:/home/anel/upis.sock;
+    }
+}
+
+
+
+Ipak cemo morati manualno startati virtualenv na serveru. 
+Napravi requirements.txt i  pokreni pip install -r requirements.txt

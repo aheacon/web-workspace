@@ -1,0 +1,231 @@
+django nginx uwsgi
+==================
+Created Wednesday 29 May 2019
+#### Django
+projectname=p_tscze
+>> Install virtual env using python3.6 or python3 in current directory
+	anel@start-tehnicka:~/my_playground/webapps$ python3 -m venv .
+	
+>> Start using it
+	anel@start-tehnicka:~/my_playground/webapps$ source ./bin/activate
+	(webapps) anel@start-tehnicka:~/my_playground/webapps$ 
+	
+>> Install django inside venv
+	 pip install django 
+	
+>> Start the project  <projectname>:
+	(webapps) anel@start-tehnicka:~/my_playground/webapps$ django-admin startproject p_tscze
+
+>> Migrate:
+	(webapps) anel@start-tehnicka:~/my_playground/webapps$ ./p_tscze/manage.py migrate
+	
+>> Change the settings.py in <projectname>
+	ALLOWED_HOSTS = ['51.15.114.199']
+	STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
+
+>> Change: collectstatic -> not known for now and create superuser 
+	./p_tscze/manage.py collectstatic
+	./p_tscze/manage.py createsuperuser
+
+>> Start the django server:
+	(webapps) anel@start-tehnicka:~/my_playground/webapps$ ./p_tscze/manage.py runserver 0.0.0.0:5000
+
+--------------------
+
+
+== Installing uWSGI with its dependecies in virtualenv ==
+
+
+>> From virtual env install uwsgi :2.0.18version
+	pip install uwsgi
+>> Start uwsgi from virtualenv (using python 3.6.7): 
+path/webapps- > to virutalenv
+path/tscze -> to manage.py
+	[1] uwsgi --http :5000 --home ~/my_playground/webapps/ --chdir ~/my_playground/webapps/p_tscze/ -w p_tscze.wsgi
+	Note: admin/ is not the same as before, with local why ?
+	or:
+	[2] uwsgi --master --http :5000 --home ~/my_playground/webapps/  --chdir ~/my_playground/webapps/p_tscze/ --module p_tscze.wsgi:application
+
+>> VARIATION NOT USING VIRTUALENV BUT uwsgi installed globally and python3.6
+	>> Needed:
+		sudo apt-get install python3-dev
+		 sudo apt-get install python3-setuptools
+		sudo apt-get install uwsgi-plugin-python3 (where it is ?)
+	>> which uwsgi -> /usr//local/bin/uwsgi (2.0.18)
+		Starting with [1] or [2] is starting with python 2.7 and rasing an error:
+			Python version: 2.7.15rc1 (default, Nov 12 2018, 14:31:15)  [GCC 7.3.0]
+			Set PythonHome to /home/anel/my_playground/webapps/
+			 ImportError: No module named site
+		
+		Where uwsgi (with pip3 install uwsgi) is located: /usr/local/lib/python3.6/dist-packages$ -> not this
+		This: /usr/lib/uwsgi/plugins$ 
+			uwsgi  --plugin-dir=/usr/lib/uwsgi/plugins --plugin python3 --master --http :5000 --home ~/my_playground/webapps/  --chdir ~/my_playground/webapps/p_tscze/ --module p_tscze.wsgi:application  
+
+--------------------
+Install from source
+wget https://projects.unbit.it/downloads/uwsgi-2.0.18.tar.gz
+
+python3 uwsgiconfig.py --build nolang
+python3 uwsgiconfig.py --plugin plugins/python nolang python36
+
+Use library
+./uwsgi  --plugin-dir=/home/anel/uwsgi-2.0.18 --plugin python36 --master --http :5000 --home ~/my_playground/webapps/  --chdir ~/my_playground/webapps/p_tscze/ --module p_tscze.wsgi:application  
+
+Ali ovo radi sa drugom vrstom uwsgi kompajliranom sa python3:
+anel@start-tehnicka:~/uwsgi-2.0.18$ ./uwsgi  --plugin-dir=/home/anel/uwsgi-2.0.18 --plugin python36 --master --http :5000 --home ~/my_playground/webapps/  --chdir ~/my_playground/webapps/p_tscze/ --module p_tscze.wsgi:application 
+
+
+		Locally upis aplikacija: 
+--plugin-dir=/usr/lib/uwsgi/plugins --plugin python3 
+		workspace/eacon/web-workspace/django/my_projects/upis
+
+
+Tehnicka aplikacija - > init.py mora postojati, pazi na razmak!
+
+./uwsgi --plugin-dir=/home/anel/uwsgi-2.0.18 --plugin python36 --master --http :5000 --home ~/workspace/eacon/web-workspace/django/my_projects --chdir ~/workspace/eacon/web-workspace/django/my_projects/upis --module upis.wsgi:application --enable-threads
+
+--------------------
+
+./uwsgi --plugin-dir=/home/anel/workspace/eacon/web-workspace/uwsgi-2.0.18/plugins --plugin python36 --master --http :5000 --home ~/workspace/eacon/web-workspace/django/my_projects --chdir ~/workspace/eacon/web-workspace/django/my_projects/upis --module upis.wsgi:application --enable-threads
+
+anel@ubuntu:~/workspace/eacon/web-workspace/uwsgi-2.0.18$ cat /etc/uwsgi/sites-anel/tehnicka.ini 
+[uwsgi]
+uid = anel
+base = /home/%(uid)
+plugin-dir=%(base)/workspace/eacon/web-workspace/uwsgi-2.0.18/plugins
+plugins=python3
+chdir = %(base)/workspace/eacon/web-workspace/django/my_projects/upis
+home = %(base)/workspace/eacon/web-workspace/django/my_projects/
+module = upis.wsgi:application
+
+master = true
+processes = 5
+
+socket = /run/uwsgi/tehnicka.sock
+chown-socket = %(uid):www-data
+chmod-socket = 664
+vacuum = true
+anel@ubuntu:~/workspace/eacon/web-workspace/uwsgi-2.0.18$ cat /etc/systemd/system/teh_uwsgi.service 
+[Unit]
+Description=uWSGI Emperor
+
+[Service]
+ExecStartPre=/bin/bash -c 'mkdir -p /run/uwsgi; chown anel:www-data /run/uwsgi'
+ExecStart=/home/anel/workspace/eacon/web-workspace/uwsgi-2.0.18/uwsgi --emperor /etc/uwsgi/sites-anel/
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+StandardError=syslog
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
+
+anel@ubuntu:~/workspace/eacon/web-workspace/uwsgi-2.0.18$ cat /etc/nginx/sites-available/teh 
+server {
+  listen 5000;
+  server_name 192.168.0.13;
+  location = /favicon.ico { access_log off; log_not_found off; }
+  location /static/ {
+	root /home/anel/eacon/web-workspace/django/my_projects/upis;
+  }
+  location / {
+	include uwsgi_params;
+	uwsgi_pass unix:/run/uwsgi/tehnicka.sock;
+  }
+}
+
+
+--------------------
+
+##### ======= step by step
+
+LInk:
+https://medium.com/@panzelva/deploying-django-website-to-vps-with-uwsgi-and-nginx-on-ubuntu-18-04-db9b387ad19d
+
+anel@ubuntu:/etc/uwsgi/sites-anel$ cat test.ini 
+
+[uwsgi]
+home = /home/anel/workspace/eacon/web-workspace/django/my_projects
+chdir = /home/anel/workspace/eacon/web-workspace/django/my_projects/upis
+wsgi-file = /home/anel/workspace/eacon/web-workspace/django/my_projects/upis/upis/wsgi.py
+http = 0.0.0.0:5000
+
+anel@ubuntu:/etc/uwsgi/sites-anel$ cat test_socket.ini 
+
+[uwsgi]
+home = /home/anel/workspace/eacon/web-workspace/django/my_projects
+chdir = /home/anel/workspace/eacon/web-workspace/django/my_projects/upis
+wsgi-file = /home/anel/workspace/eacon/web-workspace/django/my_projects/upis/upis/wsgi.py
+http = 0.0.0.0:5000
+
+socket = /home/anel/testproject.sock
+vacuum = true
+chown-socket = anel:www-data
+chmod-socket = 660
+
+sudo uwsgi test_socket.ini  -> radi uwsgi je python36 -> mislim da treba instalirati sudo -H pip3 install uwsgi i obrisati prethodnu instancu
+
+
+anel@ubuntu:/etc/systemd/system$ cat test_uwsgi.service 
+[Unit]
+Description=uWSGI Emperor service
+[Service]
+ExecStartPre=/bin/bash -c 'mkdir -p /run/uwsgi; chown anel:www-data /run/uwsgi'
+
+ExecStart=/usr/local/bin/uwsgi --emperor /etc/uwsgi/sites-anel/
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+StandardError=syslog
+NotifyAccess=all
+[Install]
+WantedBy=multi-user.target
+
+anel@ubuntu:/etc/nginx/sites-available$ cat test 
+server {
+	listen 5000;
+	server_name 192.168.0.13;
+	location / {
+		include uwsgi_params;
+		uwsgi_pass unix:/home/anel/testproject.sock;
+	}
+}
+
+
+sudo systemctl enable uwsgi # enable uwsgi service
+
+
+
+
+
+--------------------
+
+Additional installation:
+sudo apt install build-essential checkinstall
+sudo apt install libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev
+cd /opt && sudo wget https://www.python.org/ftp/python/3.6.6/Python-3.6.6.tar.xz
+	 sudo tar -xvf Python-3.6.6.tar.xz
+	 ./configure
+	sudo make && sudo make install
+	
+sudo groupadd --system webapps
+ sudo useradd --system --gid webapps --shell /bin/bash --home /webapps/project_name bunny
+
+Literature
+https://www.freecodecamp.org/news/django-uwsgi-nginx-postgresql-setup-on-aws-ec2-ubuntu16-04-with-python-3-6-6c58698ae9d3/
+https://askubuntu.com/questions/286699/uwsgi-with-python3-how-to-get-the-pluginnot-from-apt
+https://stackoverflow.com/questions/35380171/unable-to-load-uwsgi-plugin
+https://uwsgi-docs.readthedocs.io/en/latest/WSGIquickstart.html#bonus-multiple-python-versions-for-the-same-uwsgi-binary
+
+https://stackoverflow.com/questions/56265667/django-uwsgi-with-nginx-uwsgi-will-not-start
+
+https://stackoverflow.com/questions/41676875/deployment-with-django-and-uwsgi
+https://stackoverflow.com/questions/3775755/django-and-python-uwsgi
+https://stackoverflow.com/questions/24152330/internal-server-error-with-django-and-uwsgi-2-emperor-mode
+https://stackoverflow.com/questions/18456744/uwsgi-for-running-python-2-and-python3-with-django
+
+Nice
+https://code-maven.com/deploying-pyton-with-uwsgi-on-ubuntu-13-10
+https://stackoverflow.com/questions/27196776/uwsgi-upstart-on-amazon-linux
+
