@@ -1,0 +1,28 @@
+/*
+!webapps
+!uwsgi-files
+webapps/*
+!webapps/upis
+webapps/upis/*
+!webapps/upis/tehnicka
+!webapps/upis/upis
+!webapps/upis/users
+
+!test_gitignore
+!deploy_server
+!testiranje_uwsgi
+!.gitignore
+
+### Django ###
+*.log
+*.pot
+*.pyc
+__pycache__/
+migrations/
+.env
+db.sqlite3
+
+### Python ###
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
